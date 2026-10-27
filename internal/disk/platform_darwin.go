@@ -2,7 +2,9 @@ package disk
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -37,4 +39,16 @@ func platform(ctx context.Context, home string, in *Info) {
 		in.Snapshots = parseSnapshots(string(out))
 	}
 	in.Swap = swapSize("/private/var/vm")
+}
+
+// swapSize sums the swap files in dir; macOS counts them in System Data.
+func swapSize(dir string) int64 {
+	ms, _ := filepath.Glob(filepath.Join(dir, "swapfile*"))
+	var n int64
+	for _, m := range ms {
+		if fi, err := os.Stat(m); err == nil {
+			n += fi.Size()
+		}
+	}
+	return n
 }

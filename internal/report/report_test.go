@@ -9,6 +9,7 @@ import (
 	"github.com/Matthew-Eucaristo/decruft/internal/act"
 	"github.com/Matthew-Eucaristo/decruft/internal/disk"
 	"github.com/Matthew-Eucaristo/decruft/internal/item"
+	"github.com/Matthew-Eucaristo/decruft/internal/trash"
 )
 
 func scan(t *testing.T) Scan {
@@ -66,7 +67,7 @@ func TestReceiptKeepsKindsApart(t *testing.T) {
 		{Name: "e", How: act.Freed, Estimate: 4e9, What: "docker system prune --force", Claimed: true},
 	}}
 	text := strings.Join(r.Lines(), "\n")
-	for _, want := range []string{"Moved to Trash", "1.0 GB", "Freed now", "go clean -cache", "Delegated", "nodekill ×1",
+	for _, want := range []string{"Moved to " + trash.Name, "1.0 GB", "Freed now", "go clean -cache", "Delegated", "nodekill ×1",
 		"Refused", "changed since the scan", "Claimed, not freed", "10.0 GB → 13.0 GB", "+3.0 GB measured", "1.0 GB more when you empty"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q in\n%s", want, text)

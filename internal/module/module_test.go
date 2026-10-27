@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -69,7 +70,7 @@ func TestGoUsesGoEnvAndGoClean(t *testing.T) {
 		return "", errors.New("no")
 	}
 	env.Output = func(_ context.Context, _ []string, argv ...string) ([]byte, error) {
-		return []byte(`{"GOCACHE":"` + cache + `","GOMODCACHE":"` + mod + `"}`), nil
+		return json.Marshal(map[string]string{"GOCACHE": cache, "GOMODCACHE": mod})
 	}
 	r := scanGo(context.Background(), env)
 	if len(r.Items) != 2 {

@@ -6,7 +6,6 @@ package disk
 import (
 	"context"
 	"os"
-	"path/filepath"
 
 	"github.com/Matthew-Eucaristo/decruft/internal/size"
 	"github.com/Matthew-Eucaristo/decruft/internal/trash"
@@ -56,15 +55,4 @@ func Read(ctx context.Context, home string) Info {
 func Free(path string) int64 {
 	_, f := Space(path)
 	return f
-}
-
-func swapSize(dir string) int64 {
-	ms, _ := filepath.Glob(filepath.Join(dir, "swapfile*"))
-	var n int64
-	for _, m := range ms {
-		if fi, err := os.Stat(m); err == nil {
-			n += fi.Size()
-		}
-	}
-	return n
 }
