@@ -137,6 +137,55 @@ func TestLegacyFlutterkillIsHandoffOnly(t *testing.T) {
 	}
 }
 
+// flutterkill 0.3 speaks the contract: its items are delegated like
+// nodekill's, filed by kind, and named after their project.
+func TestFlutterkillContractDelegates(t *testing.T) {
+	f := fake(map[string]string{
+		"flutterkill capabilities --json": `{"schema_version":1,"tool":{"name":"flutterkill","version":"0.3.0"}}`,
+		"flutterkill scan --json": `{"schema_version":1,"warnings":[],"items":[
+ {"id":"art-1","fingerprint":"fp-1","kind":"build","name":"build","path":"~/dev/app/build","project":{"name":"app"},"measured":true,
+  "bytes":{"allocated":300,"shared":0,"exclusive":300},"action":"trash","safety":{"level":"safe","reasons":[{"code":"generated","level":"safe"}]}},
+ {"id":"glb-2","fingerprint":"fp-2","kind":"gradle-dist","name":"Gradle 8.3","path":"~/.gradle/wrapper/dists/gradle-8.3-all","project":null,
+  "measured":true,"bytes":{"allocated":100},"action":"trash","safety":{"level":"review"}},
+ {"id":"glb-3","fingerprint":"fp-3","kind":"pub-cache","name":"Pub cache","path":"~/.pub-cache","measured":true,"bytes":{"allocated":50},
+  "action":"command","command":["dart","pub","cache","clean","--force"],"safety":{"level":"review"}}]}`,
+		"flutterkill apply --plan - --json --permanent": `{"schema_version":1,"results":[{"id":"art-1","status":"done","action":"delete","estimated_bytes":300}]}`,
+	})
+	var plan []byte
+	run := f.Run
+	f.Run = func(ctx context.Context, in []byte, argv ...string) ([]byte, int, error) {
+		if in != nil {
+			plan = in
+		}
+		return run(ctx, in, argv...)
+	}
+	tool, warn, ok := f.Discover(context.Background(), "flutterkill", item.Flutter)
+	if !ok || !tool.Contract || tool.Version != "0.3.0" || warn != "" {
+		t.Fatalf("%+v %q %v", tool, warn, ok)
+	}
+	items, _, err := f.Scan(context.Background(), tool)
+	if err != nil || len(items) != 3 {
+		t.Fatal(err, items)
+	}
+	art, dist, pub := items[0], items[1], items[2]
+	if art.Name != "app · build" || art.Category != item.Flutter || art.Level != item.Safe || art.Action.Kind != item.Delegate || !art.Selectable() {
+		t.Fatalf("%+v", art)
+	}
+	if dist.Category != item.Android || dist.Level != item.Review || dist.Action.Kind != item.Delegate {
+		t.Fatalf("%+v", dist)
+	}
+	if pub.Category != item.Flutter || !strings.Contains(pub.Delegate.Text, "dart pub cache clean --force") {
+		t.Fatalf("%+v", pub)
+	}
+	res, err := f.Apply(context.Background(), tool, []item.Item{art}, Permanent)
+	if err != nil || len(res) != 1 || res[0].Status != "done" {
+		t.Fatal(err, res)
+	}
+	if string(plan) != `{"schema_version":1,"items":[{"id":"art-1","fingerprint":"fp-1"}]}` {
+		t.Fatalf("plan %s", plan)
+	}
+}
+
 func TestApplyRejectsForeignItems(t *testing.T) {
 	f := fake(map[string]string{})
 	it := item.Item{Name: "x", Delegate: &item.Delegation{Tool: "fell", ID: "wt-1"}}

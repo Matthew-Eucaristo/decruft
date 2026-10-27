@@ -121,6 +121,15 @@ func (f *Family) convert(t Tool, c contractItem) item.Item {
 		}
 		it.Reasons = append(it.Reasons, item.Reason{Code: r.Code, Level: l, Detail: r.Detail})
 	}
+	if c.Project != nil && c.Project.Name != "" { // a project's artifact: "shop · node_modules"
+		it.Name = c.Project.Name
+		if c.Name != "" {
+			it.Name += " · " + c.Name
+		}
+	}
+	if t.Name == "flutterkill" {
+		it.Category = flutterCategory(c.Kind, t.Category)
+	}
 	d := &item.Delegation{Tool: t.Name, ID: c.ID, Fingerprint: c.Fingerprint}
 	switch {
 	case c.Actions != nil: // fell: retire when it may, else strip
@@ -134,12 +143,6 @@ func (f *Family) convert(t Tool, c contractItem) item.Item {
 		case allowed["strip"] && c.Strippable != nil && c.Strippable.Allocated > 0:
 			d.Action, d.Text = "strip", "fell strip: moves the rebuildable artifacts to the Trash; the worktree stays"
 			it.Bytes, it.Frees = c.Strippable.Allocated, c.Strippable.exclusive()
-		}
-		if it.Name == "" && c.Project != nil {
-			it.Name = c.Project.Name
-		}
-		if c.Project != nil && c.Name != "" {
-			it.Name = c.Project.Name + " · " + c.Name
 		}
 		if it.Explain == "" {
 			it.Explain = "A git worktree" + ownerText(c)
@@ -173,6 +176,7 @@ func ownerText(c contractItem) string {
 
 // scanLegacy reads flutterkill 0.2's --json, which has no ids or
 // fingerprints: its items are shown, and cleaning opens flutterkill itself.
+// flutterkill 0.3 and later speak the contract and are scanned like the rest.
 func (f *Family) scanLegacy(ctx context.Context, t Tool) ([]item.Item, []string, error) {
 	args := []string{t.Path, "--json"}
 	if len(t.Roots) > 0 {
@@ -233,7 +237,7 @@ func (f *Family) scanLegacy(ctx context.Context, t Tool) ([]item.Item, []string,
 			continue
 		}
 		it := item.Item{
-			ID: item.ID("flutterkill", c.ID), Source: t.Name, Category: legacyCategory(c.ID, t.Category), Kind: c.ID,
+			ID: item.ID("flutterkill", c.ID), Source: t.Name, Category: flutterCategory(c.ID, t.Category), Kind: c.ID,
 			Name: c.Name, Path: f.expand(c.Path), Bytes: c.Bytes, Frees: -1, Level: item.Review,
 			Explain: c.Note, Action: item.Action{Kind: item.Handoff, How: how},
 		}
@@ -246,9 +250,10 @@ func (f *Family) scanLegacy(ctx context.Context, t Tool) ([]item.Item, []string,
 	return items, nil, nil
 }
 
-// legacyCategory files flutterkill's shared caches where a developer looks
-// for them: Gradle under Android, Xcode's under Xcode.
-func legacyCategory(id string, def item.Category) item.Category {
+// flutterCategory files flutterkill's shared caches where a developer looks
+// for them: Gradle under Android, Xcode's under Xcode. It takes a contract
+// kind or a 0.2 cache id; both start the same way.
+func flutterCategory(id string, def item.Category) item.Category {
 	switch {
 	case strings.HasPrefix(id, "gradle"), strings.HasPrefix(id, "android-studio"):
 		return item.Android

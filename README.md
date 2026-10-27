@@ -71,7 +71,7 @@ Family tools, run in parallel through their JSON contract ([fell's contract](htt
 |---|---|---|
 | `fell` | git and agent worktrees | `fell apply --plan -` with `retire` (or `strip` when only that is allowed) |
 | `nodekill` | `node_modules`, framework caches, package-manager caches, Node versions | `nodekill apply --plan -` |
-| `flutterkill` | Flutter/Dart build outputs and caches | shown; `o` opens flutterkill to clean (0.2 has no plan contract yet) |
+| `flutterkill` | Flutter/Dart build outputs, pub/Gradle/FVM/Android Studio caches | `flutterkill apply --plan -` (0.3+); with 0.2, items are shown and `o` opens flutterkill to clean |
 
 Every byte is offered once: when two sources report the same folder (or one inside the other), the built-in module wins, then the outer item, so fell's worktree hides nodekill's `node_modules` inside it. The sources of every command are in [docs/modules.md](docs/modules.md).
 
