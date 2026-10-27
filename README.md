@@ -4,7 +4,7 @@
 
 decruft is a better "Storage" settings screen for programmers, in the terminal. One scan covers Go caches, Xcode and its simulators, Homebrew leftovers, CocoaPods/uv/pip caches, Docker, the Android SDK and Gradle, plus everything the family cleaners find: `node_modules` and JS caches ([nodekill](https://github.com/Matthew-Eucaristo/nodekill)), Flutter builds ([flutterkill](https://github.com/Matthew-Eucaristo/flutterkill)) and forgotten agent worktrees ([fell](https://github.com/Matthew-Eucaristo/fell)). It shows the whole disk as one bar with real developer categories, explains what macOS hides behind "System Data" and "purgeable", and removes only what you pick, through each tool's own cleanup command.
 
-![decruft scanning a synthetic developer machine: the storage bar by category, the Xcode list with the exact command per item, a treemap zoomed into Xcode, then every safe item cleaned and a receipt with free space measured before and after](demo/demo.gif)
+![decruft scanning a synthetic developer machine: the storage bar by category, the Xcode list with safety labels and the exact command per item, Flutter items handed back to flutterkill, a treemap zoomed into Xcode, then every safe item cleaned, the bars springing to their new sizes and a receipt with free space measured before and after](demo/demo.gif)
 
 It is a single Go binary. macOS is first-class, Linux is supported, and Windows runs the cross-platform modules. decruft never contacts the network itself and writes no config, cache or state.
 
@@ -14,7 +14,7 @@ It is a single Go binary. macOS is first-class, Linux is supported, and Windows 
 brew install matthew-eucaristo/tap/decruft
 ```
 
-Homebrew also installs `fell`, `nodekill` and `flutterkill`, which decruft runs for their areas. With Go 1.26+: `go install github.com/Matthew-Eucaristo/decruft@latest` (then install the family tools you want; decruft finds them on `PATH` and skips the ones that are missing). Release archives for macOS, Linux and Windows are on the [releases page](https://github.com/Matthew-Eucaristo/decruft/releases).
+That one command is all you need: Homebrew installs `fell`, `nodekill` and `flutterkill` with it as dependencies, and decruft runs them for their areas (each still works on its own). With Go 1.26+: `go install github.com/Matthew-Eucaristo/decruft@latest` (then install the family tools you want; decruft finds them on `PATH` and skips the ones that are missing). Release archives for macOS, Linux and Windows are on the [releases page](https://github.com/Matthew-Eucaristo/decruft/releases).
 
 ## Use
 
@@ -37,11 +37,11 @@ decruft --no-family      # built-in modules only
 **Receipt.** After a run, the bars spring to their new sizes and decruft shows free space before and after, measured from the disk. The receipt keeps three things apart, because they mean different things:
 
 ```
-decruft · done in 9s
-  ✓ Moved to Trash        608.2 MB    3 item(s)  freed when you empty the Trash; Put Back restores
-  ✓ Freed now               1.8 GB    7 item(s)  xcrun simctl delete unavailable · go clean -cache · go clean -modcache · 3 more
-  ✓ Delegated             398.5 MB    2 item(s)  nodekill ×2 (each tool's own rules)
-    Free space  2.5 GB → 4.3 GB   +1.8 GB measured · about 608.2 MB more when you empty the Trash
+decruft · done in 2s
+  ✓ Moved to Trash        621.8 MB    3 item(s)  freed when you empty the Trash; Put Back restores
+  ✓ Freed now               1.8 GB    7 item(s)  xcrun simctl delete unavailable · go clean -cache · go clean -modcache · 4 more
+  ✓ Delegated             667.9 MB    4 item(s)  flutterkill ×2 · nodekill ×2 (each tool's own rules)
+    Free space  2.5 GB → 4.2 GB   +1.8 GB measured · about 621.8 MB more when you empty the Trash
     ↺ Build caches (Go, Homebrew, DerivedData) come back as you work; that is normal.
 ```
 
@@ -98,11 +98,11 @@ Settings' Storage screen lumps developer data into "Developer" and "System Data"
 ## Uninstall
 
 ```sh
-brew uninstall decruft
-brew untap matthew-eucaristo/tap   # if you no longer use the tap
+brew uninstall decruft && brew autoremove   # also removes fell, nodekill and flutterkill if only decruft needed them
+brew untap matthew-eucaristo/tap            # if you no longer use the tap
 ```
 
-decruft writes nothing to your disk, so there is nothing else to remove. `brew uninstall fell nodekill flutterkill` removes the family tools if you installed them only for decruft. With `go install`: `rm "$(go env GOPATH)/bin/decruft"`.
+decruft writes nothing to your disk, so there is nothing else to remove. `brew autoremove` keeps any family tool you installed yourself with `brew install`. With `go install`: `rm "$(go env GOPATH)/bin/decruft"`.
 
 ## Demo
 

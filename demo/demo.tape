@@ -18,26 +18,33 @@ Sleep 500ms
 Show
 
 Type "decruft" Sleep 300ms Enter
-Sleep 4.5s
+Sleep 5s
 
-# What is in Xcode, and exactly what would run.
-Enter Sleep 1.5s
-Down Sleep 1.2s
-Down Sleep 1.5s
-Escape Sleep 800ms
+# Xcode: every item with its safety label and the exact command or action.
+Enter Sleep 2s
+Down Sleep 1.6s
+Type "G" Sleep 2.2s
+Escape Sleep 700ms
+
+# Flutter: items found by flutterkill, handed back to it to clean.
+Down Down Down Down Down Sleep 600ms
+Enter Sleep 2.4s
+Escape Sleep 600ms
+Up Up Up Up Up Sleep 500ms
 
 # The same space as a treemap; zoom into the biggest category.
 Type "t" Sleep 2.2s
-Enter Sleep 2.2s
+Enter Sleep 2.4s
 Escape Sleep 500ms
 Escape Sleep 800ms
 
 # Select every safe item, review the plan, run it.
-Type "s" Sleep 1.2s
-Type "c" Sleep 3.5s
+Type "s" Sleep 1.5s
+Type "c" Sleep 4s
 Type "y" Sleep 7s
 
-Type "x" Sleep 2.5s
+# Back to the overview: cleaned categories are struck through.
+Type "x" Sleep 2.8s
 Type "q" Sleep 4s
 
 Hide
