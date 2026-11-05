@@ -6,6 +6,8 @@ decruft is a better "Storage" settings screen for programmers, in the terminal. 
 
 ![decruft scanning a synthetic developer machine: the storage bar by category, the Xcode list with safety labels and the exact command per item, Flutter items handed back to flutterkill, a treemap zoomed into Xcode, then every safe item cleaned, the bars springing to their new sizes and a receipt with free space measured before and after](demo/demo.gif)
 
+**Website:** [matthew-eucaristo.github.io/decruft](https://matthew-eucaristo.github.io/decruft/), with a live, clickable replica of the TUI.
+
 It is a single Go binary. macOS is first-class, Linux is supported, and Windows runs the cross-platform modules. decruft never contacts the network itself and writes no config, cache or state.
 
 ## Install

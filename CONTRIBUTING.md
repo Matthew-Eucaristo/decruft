@@ -16,6 +16,10 @@ go run . --dry-run
 
 To try the TUI on a synthetic machine, run `source demo/setup.sh`, then `decruft`. When the TUI changes visibly, re-record the README GIF locally with `vhs demo/demo.tape` and check the frames before committing.
 
+## Website
+
+`site/` is the GitHub Pages site: plain HTML, CSS and JS, nothing to install. Preview it with `site/build.sh /tmp/site/decruft && python3 -m http.server -d /tmp/site 8000`, then open http://localhost:8000/decruft/. It deploys from `main` through `.github/workflows/pages.yml`.
+
 ## Adding a module
 
 A module is one area with **one official cleanup command**. It goes in `internal/module`, reads through `Env` only, and returns items whose `Action.Argv` is that command with the tool's absolute path. Add:
