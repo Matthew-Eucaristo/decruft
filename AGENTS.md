@@ -10,6 +10,7 @@ The family's umbrella TUI/CLI: one scan of everything a developer machine accumu
 - `internal/act`: the only code that changes anything. `Plan` (priority order, one batch per tool), `Do`: re-scan the module without sizing, fingerprint match, act on the fresh copy, guard folder moves, measure statfs before/after; family batches via `Family.Apply`.
 - `internal/disk`: statfs, purgeable (JXA → Foundation), local snapshots, swap, Trash size. `internal/report`: `--list`, `--json`, receipt. `internal/ui`: model/keys/view, `treemap.go` (squarify + snap + nearest), `tmview.go`, `style.go` (palette, storage bar with sub-cell boundaries, springs).
 - `internal/size`, `format`, `pathx`, `trash`: shared with nodekill (same author, MIT).
+- `site/`: the GitHub Pages site (static HTML/CSS/JS, no build step, no third-party requests). `app.js` is a replica of the TUI on the demo machine's numbers; keep it in step when the TUI changes visibly. `site/build.sh` assembles `_site/` (MP4 and poster from `demo/demo.gif` via ffmpeg); `.github/workflows/pages.yml` deploys it on pushes to `site/**` or the GIF, and on releases.
 
 ## Invariants
 - Built-ins remove only through the tool's documented command (absolute path from LookPath, fixed argv, quiet env, stdin closed) or, for DerivedData/DeviceSupport, a folder move to the Trash. No command → shown (Manual/None), never acted on. `sudo` commands are shown, never run.
