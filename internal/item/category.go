@@ -17,6 +17,7 @@ const (
 	Android
 	Node
 	Flutter
+	Rust
 	Worktrees
 	System
 	numCategories
@@ -31,6 +32,9 @@ func Categories() []Category {
 	return out
 }
 
+// categoryInfo: each colour stays clearly apart from every other in the
+// storage bar and the treemap (TestCategoryColoursAreDistinct). Rust is the
+// only red, away from Homebrew's orange and the worktrees' tan.
 var categoryInfo = [numCategories]struct {
 	key, name, color string
 }{
@@ -42,6 +46,7 @@ var categoryInfo = [numCategories]struct {
 	Android:    {"android", "Android & Gradle", "#8BD346"},
 	Node:       {"node", "Node.js", "#E8C93A"},
 	Flutter:    {"flutter", "Flutter & Dart", "#4CC3F2"},
+	Rust:       {"rust", "Rust & Cargo", "#D9483B"},
 	Worktrees:  {"worktrees", "Git worktrees", "#C9A27A"},
 	System:     {"system", "System packages", "#9AA5B1"},
 }

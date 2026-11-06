@@ -78,7 +78,7 @@
 
   const MB = 1e6, GB = 1e9;
   const DISK = 6.2 * GB;
-  const FREE0 = 2.45 * GB;
+  const FREE0 = 1.8 * GB;
   const T = (tool) => ({ kind: "family", tool, how: "→ " + tool });
   const C = (cmd) => ({ kind: "cmd", how: "via " + cmd, cmd });
   const TRASH = { kind: "trash", how: "→ Trash" };
@@ -105,6 +105,14 @@
     { name: "Go", color: "#2EC4B6", note: "↺ regrows", items: [
       { name: "Go build cache", size: 629.1 * MB, level: "safe", ...C("go clean -cache"), path: "~/Library/Caches/go-build", what: "Compiled packages and test results.", back: "the next go build", why: "a cache Go recreates" },
       { name: "Go module cache", size: 367.1 * MB, level: "safe", ...C("go clean -modcache"), path: "~/go/pkg/mod", what: "Downloaded module sources (read-only; plain rm fails).", back: "the next go build downloads what it needs", why: "a cache Go recreates" },
+    ] },
+    { name: "Rust & Cargo", color: "#D9483B", note: "via rustkill", items: [
+      { name: "shop-api · target", size: 272.6 * MB, level: "safe", ...T("rustkill"), path: "~/dev/shop-api/target", what: "Cargo's build output: compiled dependencies, incremental caches and the binaries in debug/ and release/.", back: "cargo build (from scratch, so the first build is slow)", why: "rustkill's rules: cargo's own tag, git-ignored, idle" },
+      { name: "toolchain 1.80.0", size: 125.8 * MB, level: "review", ...T("rustkill"), path: "~/.rustup/toolchains/1.80.0-aarch64-apple-darwin", what: "A Rust toolchain rustup installed: rustc, cargo and the standard library. rustkill runs rustup toolchain uninstall.", back: "rustup toolchain install 1.80.0", why: "no project under the scanned folders pins it, but check" },
+      { name: "desk-app · target", size: 125.8 * MB, level: "safe", ...T("rustkill"), path: "~/dev/desk-app/src-tauri/target", what: "A Tauri app's Rust build output. nodekill sees it too; it is shown once, as rustkill's.", back: "cargo build / tauri dev", why: "rustkill's rules: cargo's own tag, git-ignored, idle" },
+      { name: "crates.io sources", size: 62.9 * MB, level: "safe", ...T("rustkill"), path: "~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f", what: "Crates Cargo unpacked from its downloads so rustc can compile them.", back: "cargo unpacks them again from registry/cache, offline", why: "rustkill's rules: Cargo restores what a build needs" },
+      { name: "toolchain stable (1.91.0)", size: 42.0 * MB, level: "protected", kind: "none", how: "rustkill leaves this alone", path: "~/.rustup/toolchains/stable-aarch64-apple-darwin", what: "rustup's default toolchain.", back: "rustup toolchain install stable", why: "rustup's default toolchain is never offered" },
+      { name: "crates.io downloads", size: 36.7 * MB, level: "review", ...T("rustkill"), path: "~/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f", what: "The .crate archives Cargo downloaded.", back: "cargo downloads the crates again (builds need the network once)", why: "removing it means downloading again" },
     ] },
     { name: "Homebrew", color: "#F59E42", note: "↺ regrows", items: [
       { name: "Old versions, downloads and logs", size: 280.0 * MB, level: "safe", ...C("brew cleanup --prune=all"), path: "~/Library/Caches/Homebrew", what: "Outdated kegs, cached downloads and logs.", back: "re-downloaded only if you reinstall", why: "brew's own cleanup" },
@@ -282,7 +290,7 @@
     out += `<span class="ln">${sp("m b", "What macOS does not show you")}</span>`;
     out += `<span class="ln f">${esc(trunc("Inside “System Data”: simulator runtimes 1.2 GB.", cols))}</span>`;
     out += lines(1);
-    const src = [["✓", "xcode"], ["✓", "homebrew"], ["✓", "go"], ["✓", "packages"], ["·", "docker"], ["·", "android"], ["✓", "fell 0.1.2"], ["✓", "nodekill 0.1.0"], ["✓", "flutterkill 0.3.0"]];
+    const src = [["✓", "xcode"], ["✓", "homebrew"], ["✓", "go"], ["✓", "packages"], ["·", "docker"], ["·", "android"], ["✓", "fell 0.1.2"], ["✓", "rustkill 0.1.0"], ["✓", "nodekill 0.1.0"], ["✓", "flutterkill 0.3.0"]];
     let srcLine = sp("f", "Sources ");
     let len = 8;
     for (const [m, n] of src) {

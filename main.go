@@ -35,12 +35,13 @@ var version = "" // set by -ldflags at release time
 const usage = `decruft - see and reclaim what a developer's machine accumulates.
 
 Usage:
-  decruft [flags] [root...]     roots are passed to fell, nodekill and flutterkill
-                                (default: their own, ~/dev)
+  decruft [flags] [root...]     roots are passed to fell, rustkill, nodekill and
+                                flutterkill (default: their own, ~/dev)
 
 Interactive by default. Folders go to the Trash unless --permanent; caches are
 removed by their own tool's official command; family items are handed back to
-fell, nodekill or flutterkill. --list, --json and --dry-run never change anything.
+fell, rustkill, nodekill or flutterkill. --list, --json and --dry-run never
+change anything.
 
 Flags:
 `
@@ -109,7 +110,7 @@ func runWith(args []string, stdout, stderr io.Writer, d deps) error {
 		jsonOut   = flags.Bool("json", false, "print the scan as JSON and exit (never changes anything)")
 		list      = flags.Bool("list", false, "print the scan as a table and exit (default when not a terminal)")
 		yes       = flags.Bool("yes", false, "non-interactive: clean every safe item (review items are never included)")
-		noFamily  = flags.Bool("no-family", false, "skip fell, nodekill and flutterkill")
+		noFamily  = flags.Bool("no-family", false, "skip fell, rustkill, nodekill and flutterkill")
 		showVer   = flags.Bool("version", false, "print version")
 	)
 	flags.Usage = func() {

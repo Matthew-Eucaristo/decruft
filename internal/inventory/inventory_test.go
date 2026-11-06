@@ -76,3 +76,39 @@ func TestCollectSurvivesAPanickingModule(t *testing.T) {
 		t.Fatalf("items %+v warns %v", items, warns)
 	}
 }
+
+// nodekill reports a Tauri app's src-tauri/target (tauri-target) and
+// rustkill reports the same folder as a Cargo target: one item is shown, and
+// it is rustkill's, whatever order the tools finished in and whatever level
+// each gave it (rustkill sees cargo's build lock, nodekill does not).
+func TestDedupeRustkillOwnsTauriTarget(t *testing.T) {
+	const p = "/h/dev/desk-app/src-tauri/target"
+	node := delegated("nodekill", "tauri-target", p)
+	node.Level = item.Review
+	rust := delegated("rustkill", "target", p)
+	busy := rust
+	busy.ID, busy.Level, busy.Action = "rustkill:busy", item.Live, item.Action{Kind: item.None}
+	odd := busy
+	odd.ID, odd.Delegate = "rustkill:odd", nil // an action decruft does not know: nothing to hand back
+	for name, items := range map[string][]item.Item{
+		"rustkill first":  {rust, node},
+		"nodekill first":  {node, rust},
+		"rustkill live":   {node, busy},
+		"rustkill no way": {node, odd},
+	} {
+		out, dropped := Dedupe(items)
+		if len(out) != 1 || dropped != 1 || out[0].Source != "rustkill" {
+			t.Errorf("%s: kept %+v", name, out)
+		}
+	}
+	// Outer still beats inner: fell's worktree keeps the target inside it.
+	wt := delegated("fell", "wt", "/h/dev/desk-app/.claude/worktrees/a")
+	inner := delegated("rustkill", "target", "/h/dev/desk-app/.claude/worktrees/a/src-tauri/target")
+	if out, _ := Dedupe([]item.Item{inner, wt}); len(out) != 1 || out[0].Source != "fell" {
+		t.Fatalf("kept %+v", out)
+	}
+	// Without rustkill's item, nodekill's stays.
+	if out, _ := Dedupe([]item.Item{node, delegated("rustkill", "target", "/h/dev/shop-api/target")}); len(out) != 2 {
+		t.Fatalf("kept %+v", out)
+	}
+}

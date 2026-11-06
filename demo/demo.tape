@@ -27,10 +27,10 @@ Type "G" Sleep 2.2s
 Escape Sleep 700ms
 
 # Flutter: items found by flutterkill, handed back to it to clean.
-Down Down Down Down Down Sleep 600ms
+Down Down Down Down Down Down Sleep 600ms
 Enter Sleep 2.4s
 Escape Sleep 600ms
-Up Up Up Up Up Sleep 500ms
+Up Up Up Up Up Up Sleep 500ms
 
 # The same space as a treemap; zoom into the biggest category.
 Type "t" Sleep 2.2s

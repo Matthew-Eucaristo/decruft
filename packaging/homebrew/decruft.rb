@@ -14,6 +14,7 @@ class Decruft < Formula
   depends_on "matthew-eucaristo/tap/fell"
   depends_on "matthew-eucaristo/tap/flutterkill"
   depends_on "matthew-eucaristo/tap/nodekill"
+  depends_on "matthew-eucaristo/tap/rustkill"
 
   def install
     system "go", "build", *std_go_args(ldflags: "-X main.version=#{version}")

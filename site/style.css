@@ -241,8 +241,9 @@ h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: -.01em; }
 .hub code { color: var(--mut); white-space: normal; }
 .family .hub { order: -1; }
 .family { display: flex; flex-direction: column; }
-.kids { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-@media (max-width: 860px) { .kids { grid-template-columns: 1fr; } .wires { display: none; } .hub { margin-bottom: 22px; } }
+.kids { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media (max-width: 1060px) { .kids { grid-template-columns: repeat(2, 1fr); } .wires { display: none; } .hub { margin-bottom: 22px; } }
+@media (max-width: 620px) { .kids { grid-template-columns: 1fr; } }
 .kid { display: block; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: var(--r); padding: 22px; text-decoration: none; color: var(--fg); transition: transform .25s, border-color .25s, box-shadow .25s; }
 .kid:hover { color: var(--fg); transform: translateY(-4px); box-shadow: 0 20px 50px -20px color-mix(in srgb, var(--c) 45%, transparent); border-color: color-mix(in srgb, var(--c) 50%, var(--line)); border-top-color: var(--c); }
 .kid h3 { font: 700 20px var(--mono); color: var(--c); }

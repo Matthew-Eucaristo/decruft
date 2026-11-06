@@ -27,4 +27,4 @@ brew test decruft
 brew audit --strict --online matthew-eucaristo/tap/decruft
 ```
 
-The formula `depends_on` fell, nodekill and flutterkill from the same tap, so those formulae must exist there first. Release flutterkill 0.3 (the first with the contract) before decruft, so a fresh install delegates Flutter items instead of only showing them.
+The formula `depends_on` fell, rustkill, nodekill and flutterkill from the same tap, so those formulae must exist there first. Release rustkill (and add it to the tap) before the decruft release that depends on it, or `brew install decruft` fails. Release flutterkill 0.3 (the first with the contract) before decruft, so a fresh install delegates Flutter items instead of only showing them.

@@ -186,9 +186,11 @@ func Sort(items []item.Item) {
 // rank decides who owns overlapping bytes: a built-in module with an
 // official command first, then the family tool, then a built-in that only
 // informs (Gradle's folders), so a tool that can act is not hidden by one
-// that cannot.
+// that cannot. A family tool's item counts as the tool's even when the tool
+// offers no action for it (protected, live or an action decruft does not
+// know), so the tool's own verdict is what stays visible.
 func rank(it *item.Item) int {
-	builtin := it.Delegate == nil && it.Action.Kind != item.Handoff
+	builtin := it.Delegate == nil && it.Action.Kind != item.Handoff && toolOrder(it.Source) < 0
 	switch {
 	case builtin && it.Action.Kind != item.None:
 		return 0
@@ -213,7 +215,9 @@ func toolOrder(source string) int {
 // Dedupe keeps one item for every set of overlapping paths (the same path,
 // or one inside the other) reported by different sources. Built-in modules
 // win, then the outer item: fell's worktree over nodekill's node_modules
-// inside it, so the same bytes are never offered twice.
+// inside it, so the same bytes are never offered twice. Two family tools on
+// the same path go by family.Known's order: rustkill keeps a Tauri app's
+// src-tauri/target over nodekill's tauri-target.
 func Dedupe(items []item.Item) ([]item.Item, int) {
 	drop := make([]bool, len(items))
 	kinds := map[string]bool{}

@@ -1,4 +1,4 @@
-// Package family runs the family's own cleaners (fell, nodekill,
+// Package family runs the family's own cleaners (fell, rustkill, nodekill,
 // flutterkill) through their JSON contract: `capabilities --json` to find
 // them, `scan --json` to see what they see, and `apply --plan` to hand
 // removals back, so each tool's own guards always run.
@@ -23,11 +23,16 @@ import (
 const Schema = 1
 
 // Known lists the family's cleaners and the category their items go in.
+// The order is also precedence: when two tools report the same folder, the
+// earlier one keeps it. rustkill comes before nodekill so a Tauri app's
+// src-tauri/target (nodekill's tauri-target) belongs to rustkill, which
+// recognises Cargo build directories by cargo's own tag and build lock.
 var Known = []struct {
 	Name     string
 	Category item.Category
 }{
 	{"fell", item.Worktrees},
+	{"rustkill", item.Rust},
 	{"nodekill", item.Node},
 	{"flutterkill", item.Flutter},
 }

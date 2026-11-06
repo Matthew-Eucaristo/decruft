@@ -763,7 +763,7 @@ func (m *Model) legendLines() []string {
 	para("    ", badge(item.Protected)+"  shown, never removed: no official command, needs sudo, or the owning app removes it")
 	para("    ", badge(item.Live)+"  in use right now (Xcode, a booted simulator, an agent session)")
 	out = append(out, "")
-	para("  ", "Folders move to the "+trash.Name+" and free space when you empty it. Caches go through their own tool's official command ("+magenta.Render("go clean, brew cleanup, xcrun simctl, pod cache clean, uv cache prune, docker system prune")+"), which deletes and frees space now. fell, nodekill and flutterkill items are handed back to those tools, which check them again. Free space is measured, never assumed.")
+	para("  ", "Folders move to the "+trash.Name+" and free space when you empty it. Caches go through their own tool's official command ("+magenta.Render("go clean, brew cleanup, xcrun simctl, pod cache clean, uv cache prune, docker system prune")+"), which deletes and frees space now. fell, rustkill, nodekill and flutterkill items are handed back to those tools, which check them again. Free space is measured, never assumed.")
 	out = append(out, "")
 	para("  ", bold.Render("FREES")+" is what removal frees right away: on APFS, blocks shared with clones and snapshots are left out. "+cyan.Render("↺")+" marks caches that come back as you work.")
 	out = append(out, "")

@@ -2,10 +2,11 @@
 # Builds a synthetic developer machine for the demo recording: a fake HOME
 # (on macOS a small APFS disk image, so free space and the Trash are the
 # image's own), Go caches, Xcode DerivedData and simulators, Homebrew
-# leftovers, package caches, Node and Flutter projects and an agent
-# worktree. Stand-in brew/xcrun/pod/uv/docker answer from these fixtures and
-# act only on them; go, git and the family tools are the real ones. Nothing
-# from the real machine appears in the recording.
+# leftovers, package caches, Node, Rust and Flutter projects, Cargo's caches,
+# rustup toolchains and an agent worktree. Stand-in brew/xcrun/pod/uv/pip3/
+# rustup answer from these fixtures and act only on them; go, git and the
+# family tools are the real ones (rustkill is built from ../rustkill when it
+# is not installed). Nothing from the real machine appears in the recording.
 # Usage: source demo/setup.sh   (from the repository root)
 # Remove: hdiutil detach /tmp/decruft-demo/home (macOS); rm -rf /tmp/decruft-demo
 set -e
@@ -18,6 +19,12 @@ go build -trimpath -o "$DEMO/bin/decruft" .
 for t in fell nodekill flutterkill go git; do
   p="$(command -v "$t")" && ln -s "$p" "$DEMO/bin/$t"
 done
+# rustkill: the installed one, else built from a sibling checkout (before its first release).
+if p="$(command -v rustkill)"; then
+  ln -s "$p" "$DEMO/bin/rustkill"
+elif [ -f ../rustkill/go.mod ]; then
+  (cd ../rustkill && go build -trimpath -o "$DEMO/bin/rustkill" .)
+fi
 if command -v hdiutil >/dev/null; then
   hdiutil create -quiet -size 6g -fs APFS -volname demo -type SPARSE "$DEMO/home.sparseimage"
   hdiutil attach -quiet -nobrowse -mountpoint "$DEMO/home" "$DEMO/home.sparseimage"
@@ -89,6 +96,52 @@ git -C "$P" add -A && GIT_AUTHOR_DATE=$(iso_ago 40) GIT_COMMITTER_DATE=$(iso_ago
 blob "$P/build/app/outputs" 210 && blob "$P/.dart_tool" 40
 age "$P" 40
 
+# ── Rust: rustkill recognises Cargo's build folders by cargo's own tag ──
+cargo_target() { # dir: cargo's CACHEDIR.TAG, rustc's version cache and a profile lock
+  mkdir -p "$1/debug"
+  printf 'Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n# For information about cache directory tags see https://bford.info/cachedir/\n' > "$1/CACHEDIR.TAG"
+  echo '{"rustc_fingerprint":1,"outputs":{},"successes":{}}' > "$1/.rustc_info.json"
+  : > "$1/debug/.cargo-lock"
+}
+crate() { # dir name
+  printf '[package]\nname = "%s"\nversion = "0.1.0"\nedition = "2021"\n' "$2" > "$1/Cargo.toml"
+  mkdir -p "$1/src" && echo 'fn main() {}' > "$1/src/main.rs"
+}
+P="$H/dev/shop-api"
+repo "$P" 50 'target/\n'
+crate "$P" shop-api
+git -C "$P" add -A && GIT_AUTHOR_DATE=$(iso_ago 50) GIT_COMMITTER_DATE=$(iso_ago 50) git -C "$P" commit -q -m cargo
+cargo_target "$P/target"
+blob "$P/target/debug/deps" 180 && blob "$P/target/release/deps" 80
+age "$P" 50
+# A Tauri app: nodekill sees src-tauri/target too; decruft shows it once, as rustkill's.
+P="$H/dev/desk-app"
+repo "$P" 35 'node_modules/\nsrc-tauri/target/\n'
+printf '{"name":"desk-app","private":true,"devDependencies":{"@tauri-apps/cli":"2.9.0"}}\n' > "$P/package.json"
+echo '{}' > "$P/package-lock.json" && mkdir -p "$P/src-tauri" && crate "$P/src-tauri" desk-app
+git -C "$P" add -A && GIT_AUTHOR_DATE=$(iso_ago 35) GIT_COMMITTER_DATE=$(iso_ago 35) git -C "$P" commit -q -m tauri
+cargo_target "$P/src-tauri/target"
+blob "$P/src-tauri/target/debug/deps" 120
+age "$P" 35
+CRATES="$H/.cargo/registry"
+blob "$CRATES/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0" 60 lib.rs
+blob "$CRATES/cache/index.crates.io-1949cf8c6b5b557f" 35 tokio-1.48.0.crate
+# rustup: the default toolchain (protected) and an old one, with rustup's channel
+# manifest; stand-in rustc/cargo answer --version.
+case "$(uname -m)" in arm64 | aarch64) ARCH=aarch64 ;; *) ARCH=x86_64 ;; esac
+case "$(uname)" in Darwin) RHOST="$ARCH-apple-darwin" ;; *) RHOST="$ARCH-unknown-linux-gnu" ;; esac
+mkdir -p "$H/.rustup"
+printf 'version = "12"\ndefault_toolchain = "stable-%s"\ndefault_host_triple = "%s"\n' "$RHOST" "$RHOST" > "$H/.rustup/settings.toml"
+for spec in "stable:1.91.0:3:40" "1.80.0:1.80.0:200:120"; do
+  IFS=: read -r name ver days mb <<< "$spec"
+  T="$H/.rustup/toolchains/$name-$RHOST"
+  mkdir -p "$T/bin" && blob "$T/lib" "$mb" librustc_driver.so
+  mkdir -p "$T/lib/rustlib" && printf '[pkg.rustc]\nversion = "%s"\n' "$ver" > "$T/lib/rustlib/multirust-channel-manifest.toml"
+  for b in rustc cargo; do printf '#!/bin/sh\necho "%s %s"\n' "$b" "$ver" > "$T/bin/$b"; done
+  chmod +x "$T/bin/"*
+  age "$T" "$days"
+done
+
 # ── stand-in tools ──
 cat > "$DEMO/bin/brew" <<EOF
 #!/bin/sh
@@ -123,6 +176,10 @@ EOF
 cat > "$DEMO/bin/uv" <<EOF
 #!/bin/sh
 case "\$*" in "cache dir") echo "$H/.cache/uv" ;; "cache prune") rm -rf "$H/.cache/uv/wheels-v5" ;; esac
+EOF
+cat > "$DEMO/bin/rustup" <<EOF
+#!/bin/sh
+case "\$*" in "toolchain uninstall "*) rm -rf "$H/.rustup/toolchains/\$3" ;; esac
 EOF
 cat > "$DEMO/bin/pip3" <<EOF
 #!/bin/sh

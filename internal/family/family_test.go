@@ -193,3 +193,119 @@ func TestApplyRejectsForeignItems(t *testing.T) {
 		t.Fatal("an item must go back to its own tool")
 	}
 }
+
+// rustkillScan is the shape of `rustkill scan --json`: a project's target
+// folder (trash), an old toolchain (rustup's own command), the default
+// toolchain (protected) and a cache it could not measure.
+const rustkillScan = `{"schema_version":1,"tool":{"name":"rustkill","version":"0.1.0","ecosystem":"rust"},"roots":["~/dev"],"warnings":[],"items":[
+ {"id":"tgt-1","fingerprint":"fp-1","kind":"target","category":"project","name":"target","path":"~/dev/shop-api/target",
+  "project":{"path":"~/dev/shop-api","name":"shop-api","workspace":false,"toolchain":""},"action":"trash","regenerate":"cargo build",
+  "explain":"Cargo's build output for shop-api.","measured":true,"bytes":{"allocated":3000,"shared":0,"exclusive":3000,"file_count":9},
+  "git":{"ignored":true,"tracked_files":false},"safety":{"level":"safe","reasons":[]}},
+ {"id":"glb-2","fingerprint":"fp-2","kind":"toolchain","category":"runtime","name":"toolchain 1.80.0","path":"~/.rustup/toolchains/1.80.0-x86_64-unknown-linux-gnu",
+  "project":null,"tool":"rustup","action":"command","command":["~/.cargo/bin/rustup","toolchain","uninstall","1.80.0-x86_64-unknown-linux-gnu"],
+  "regenerate":"rustup toolchain install 1.80.0","explain":"A Rust toolchain rustup installed.","note":"no project under the scanned folders pins it",
+  "measured":true,"bytes":{"allocated":2000,"shared":0,"exclusive":2000,"file_count":4},
+  "safety":{"level":"review","reasons":[{"code":"catalog_review","level":"review","detail":"check that no project still needs it"}]}},
+ {"id":"glb-3","fingerprint":"fp-3","kind":"toolchain","category":"runtime","name":"toolchain stable (1.91.0)","path":"~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu",
+  "project":null,"tool":"rustup","action":"command","command":["~/.cargo/bin/rustup","toolchain","uninstall","stable-x86_64-unknown-linux-gnu"],
+  "measured":true,"bytes":{"allocated":1000,"shared":0,"exclusive":1000,"file_count":4},
+  "safety":{"level":"protected","reasons":[{"code":"current","level":"protected","detail":"rustup's default toolchain"}]}},
+ {"id":"glb-4","fingerprint":"fp-4","kind":"registry-src","category":"cache","name":"crates.io sources","path":"~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f",
+  "project":null,"tool":"cargo","action":"trash","measured":false,"bytes":{"allocated":0,"shared":0,"exclusive":0,"file_count":0},
+  "safety":{"level":"safe","reasons":[]}}]}`
+
+// rustkill speaks the contract: every item goes in Rust, trash and command
+// items alike are handed back by id and fingerprint, and what rustkill
+// protects stays protected.
+func TestRustkillContractDelegates(t *testing.T) {
+	f := fake(map[string]string{
+		"rustkill capabilities --json":               `{"schema_version":1,"tool":{"name":"rustkill","version":"0.1.0","ecosystem":"rust"}}`,
+		"rustkill scan --json":                       rustkillScan,
+		"rustkill apply --plan - --json --dry-run":   `{"schema_version":1,"results":[{"id":"tgt-1","status":"dry_run","action":"trash","estimated_bytes":3000},{"id":"glb-2","status":"dry_run","action":"command","estimated_bytes":2000}]}`,
+		"rustkill apply --plan - --json --permanent": `{"schema_version":2,"results":[]}`,
+		"rustkill apply --plan - --json":             `not json`,
+	})
+	var plan []byte
+	run := f.Run
+	f.Run = func(ctx context.Context, in []byte, argv ...string) ([]byte, int, error) {
+		if in != nil {
+			plan = in
+		}
+		return run(ctx, in, argv...)
+	}
+	tool, warn, ok := f.Discover(context.Background(), "rustkill", item.Rust)
+	if !ok || !tool.Contract || tool.Version != "0.1.0" || warn != "" {
+		t.Fatalf("%+v %q %v", tool, warn, ok)
+	}
+	items, warns, err := f.Scan(context.Background(), tool)
+	if err != nil || len(items) != 4 || len(warns) != 0 {
+		t.Fatal(err, warns, items)
+	}
+	target, old, stable, src := items[0], items[1], items[2], items[3]
+	for _, it := range items {
+		if it.Category != item.Rust || it.Source != "rustkill" || it.Delegate == nil || it.Delegate.Tool != "rustkill" {
+			t.Fatalf("%+v", it)
+		}
+	}
+	if target.Name != "shop-api · target" || target.Path != filepath.Join("/home/u", "dev", "shop-api", "target") ||
+		target.Bytes != 3000 || target.Frees != 3000 || target.Level != item.Safe || target.Action.Kind != item.Delegate ||
+		!target.Selectable() || target.Delegate.Text != "rustkill moves it to the Trash" {
+		t.Fatalf("target: %+v %+v", target, target.Delegate)
+	}
+	if old.Level != item.Review || !old.Selectable() || old.Action.Kind != item.Delegate || old.Note == "" ||
+		old.Delegate.Text != "rustkill runs: ~/.cargo/bin/rustup toolchain uninstall 1.80.0-x86_64-unknown-linux-gnu" ||
+		len(old.Reasons) != 1 || old.Reasons[0].Code != "catalog_review" {
+		t.Fatalf("old toolchain: %+v %+v", old, old.Delegate)
+	}
+	// The default toolchain: shown with rustkill's reason, never offered.
+	if stable.Level != item.Protected || stable.Selectable() || stable.Action.Kind != item.None || stable.Reasons[0].Code != "current" {
+		t.Fatalf("default toolchain: %+v", stable)
+	}
+	if src.Bytes != -1 || src.Frees != -1 || !src.Selectable() {
+		t.Fatalf("unmeasured cache: %+v", src)
+	}
+	res, err := f.Apply(context.Background(), tool, []item.Item{target, old}, DryRun)
+	if err != nil || len(res) != 2 || res[1].Action != "command" {
+		t.Fatal(err, res)
+	}
+	if string(plan) != `{"schema_version":1,"items":[{"id":"tgt-1","fingerprint":"fp-1"},{"id":"glb-2","fingerprint":"fp-2"}]}` {
+		t.Fatalf("plan %s", plan)
+	}
+	if _, err := f.Apply(context.Background(), tool, []item.Item{target}, Permanent); err == nil {
+		t.Fatal("an apply result with another schema must be rejected")
+	}
+	if _, err := f.Apply(context.Background(), tool, []item.Item{target}, Trash); err == nil {
+		t.Fatal("an unreadable apply result must be rejected")
+	}
+}
+
+func TestRustkillUnknownSchemaIsSkipped(t *testing.T) {
+	f := fake(map[string]string{"rustkill capabilities --json": `{"schema_version":2,"tool":{"name":"rustkill","version":"1.0.0"}}`})
+	if _, warn, ok := f.Discover(context.Background(), "rustkill", item.Rust); ok || !strings.Contains(warn, "rustkill speaks contract version 2") {
+		t.Fatalf("ok %v warn %q", ok, warn)
+	}
+	// No legacy fallback: only flutterkill 0.2 had one.
+	f = fake(map[string]string{"rustkill capabilities --json": `usage: rustkill …`, "rustkill --version": "rustkill 0.0.1"})
+	if _, warn, ok := f.Discover(context.Background(), "rustkill", item.Rust); ok || !strings.Contains(warn, "upgrade") {
+		t.Fatalf("ok %v warn %q", ok, warn)
+	}
+	f = fake(map[string]string{"rustkill scan --json": strings.Replace(rustkillScan, `"schema_version":1`, `"schema_version":2`, 1)})
+	if _, _, err := f.Scan(context.Background(), Tool{Name: "rustkill", Path: "/bin/rustkill", Contract: true, Category: item.Rust}); err == nil {
+		t.Fatal("a rustkill scan with another schema must be rejected")
+	}
+}
+
+func TestKnownIncludesRustkill(t *testing.T) {
+	order := map[string]int{}
+	for i, k := range Known {
+		order[k.Name] = i
+		if k.Name == "rustkill" && k.Category != item.Rust {
+			t.Fatalf("rustkill files its items under %s", k.Category)
+		}
+	}
+	r, ok := order["rustkill"]
+	if !ok || r > order["nodekill"] {
+		t.Fatal("rustkill must be known, and come before nodekill so it owns Rust build directories both report")
+	}
+}
