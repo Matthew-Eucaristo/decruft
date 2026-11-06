@@ -40,10 +40,10 @@ decruft --no-family      # built-in modules only
 
 ```
 decruft · done in 2s
-  ✓ Moved to Trash        621.8 MB    3 item(s)  freed when you empty the Trash; Put Back restores
+  ✓ Moved to Trash        608.2 MB    3 item(s)  freed when you empty the Trash; Put Back restores
   ✓ Freed now               1.8 GB    7 item(s)  xcrun simctl delete unavailable · go clean -cache · go clean -modcache · 4 more
-  ✓ Delegated             667.9 MB    4 item(s)  flutterkill ×2 · nodekill ×2 (each tool's own rules)
-    Free space  2.5 GB → 4.2 GB   +1.8 GB measured · about 621.8 MB more when you empty the Trash
+  ✓ Delegated               1.1 GB    7 item(s)  flutterkill ×2 · nodekill ×2 · rustkill ×3 (each tool's own rules)
+    Free space  1.8 GB → 3.6 GB   +1.8 GB measured · about 608.2 MB more when you empty the Trash
     ↺ Build caches (Go, Homebrew, DerivedData) come back as you work; that is normal.
 ```
 
