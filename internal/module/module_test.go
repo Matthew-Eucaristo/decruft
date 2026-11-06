@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -115,6 +117,119 @@ func TestHomebrew(t *testing.T) {
 	}
 	if clean.Bytes != 373_300_000 || clean.Level != item.Safe || strings.Join(clean.Action.Argv, " ") != "/bin/brew cleanup --prune=all" {
 		t.Fatalf("cleanup %+v", clean)
+	}
+}
+
+// brewWith is a Homebrew whose autoremove would take these formulae; each
+// one maps to the commands its keg has, and those marked with a leading "+"
+// are linked into PATH.
+func brewWith(t *testing.T, kegs map[string][]string) *Env {
+	t.Helper()
+	var names []string
+	for n := range kegs {
+		names = append(names, n)
+	}
+	slices.Sort(names)
+	env := fakeEnv(t, map[string]string{
+		"brew autoremove -n":          "==> Would autoremove " + fmt.Sprint(len(names)) + " unneeded formulae:\n" + strings.Join(names, "\n") + "\n",
+		"brew cleanup --prune=all -n": "",
+	})
+	cellar := mkdir(t, env.Home, "Cellar")
+	prefixBin := mkdir(t, env.Home, "bin")
+	onPath := map[string]string{}
+	for n, cmds := range kegs {
+		bin := mkdir(t, cellar, n, "1.0", "bin")
+		for _, c := range cmds {
+			linked := strings.HasPrefix(c, "+")
+			c = strings.TrimPrefix(c, "+")
+			exe := filepath.Join(bin, c)
+			if err := os.WriteFile(exe, []byte("#!/bin/sh\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if linked {
+				link := filepath.Join(prefixBin, c)
+				if err := os.Symlink(exe, link); err != nil {
+					t.Skip("no symlinks:", err)
+				}
+				onPath[c] = link
+			}
+		}
+	}
+	look := env.LookPath
+	env.LookPath = func(name string) (string, error) {
+		if p, ok := onPath[name]; ok {
+			return p, nil
+		}
+		return look(name)
+	}
+	inner := env.Output
+	env.Output = func(ctx context.Context, e []string, argv ...string) ([]byte, error) {
+		if strings.HasSuffix(strings.Join(argv, " "), "--cellar") {
+			return []byte(testfixReal(t, cellar) + "\n"), nil
+		}
+		return inner(ctx, e, argv...)
+	}
+	return env
+}
+
+// testfixReal resolves symlinks in a temp path (macOS /var → /private/var),
+// as EvalSymlinks does for the linked commands.
+func testfixReal(t *testing.T, p string) string {
+	r, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func TestHomebrewAutoremoveKeepsCommandsOnPath(t *testing.T) {
+	// bun came in as a dependency, but its command is the one PATH runs.
+	env := brewWith(t, map[string][]string{"bun": {"+bun", "+bunx"}, "icu4c@76": nil})
+	r := scanHomebrew(context.Background(), env)
+	if len(r.Items) != 1 {
+		t.Fatalf("%+v", r.Items)
+	}
+	it := r.Items[0]
+	if it.Level != item.Protected || !it.Has("provides_commands") || it.Action.Kind != item.Manual {
+		t.Fatalf("autoremove offered although bun is on PATH: %+v", it)
+	}
+	if got := strings.Join(it.Action.Argv, " "); got != "/bin/brew uninstall icu4c@76" {
+		t.Errorf("manual command %q, want the library only", got)
+	}
+	if !strings.Contains(it.Reasons[len(it.Reasons)-1].Detail, "bun (bun, bunx)") {
+		t.Errorf("reason %+v", it.Reasons)
+	}
+}
+
+func TestHomebrewAutoremoveLibrariesAndUnlinkedCommands(t *testing.T) {
+	// A library, and a keg-only formula whose command is not on PATH.
+	env := brewWith(t, map[string][]string{"icu4c@76": nil, "openssl@3": {"openssl"}})
+	it := scanHomebrew(context.Background(), env).Items[0]
+	if it.Level != item.Review || it.Action.Kind != item.Command || strings.Join(it.Action.Argv, " ") != "/bin/brew autoremove" {
+		t.Fatalf("%+v", it)
+	}
+}
+
+func TestHomebrewAutoremoveOnlyCommands(t *testing.T) {
+	env := brewWith(t, map[string][]string{"bun": {"+bun"}})
+	it := scanHomebrew(context.Background(), env).Items[0]
+	if it.Level != item.Protected || it.Action.Kind != item.Manual || len(it.Action.Argv) != 0 {
+		t.Fatalf("%+v", it)
+	}
+}
+
+func TestHomebrewAutoremoveWithoutCellar(t *testing.T) {
+	env := brewWith(t, map[string][]string{"bun": {"+bun"}})
+	inner := env.Output
+	env.Output = func(ctx context.Context, e []string, argv ...string) ([]byte, error) {
+		if strings.HasSuffix(strings.Join(argv, " "), "--cellar") {
+			return nil, errors.New("no cellar")
+		}
+		return inner(ctx, e, argv...)
+	}
+	it := scanHomebrew(context.Background(), env).Items[0]
+	if it.Level != item.Protected || !it.Has("unverified") || it.Action.Kind == item.Command {
+		t.Fatalf("%+v", it)
 	}
 }
 

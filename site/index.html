@@ -405,7 +405,8 @@ decruft --no-family</code></pre>
 
     <details class="uninstall">
       <summary>Uninstalling is just as clean</summary>
-<pre><code>brew uninstall decruft &amp;&amp; brew autoremove   # also removes the family tools if only decruft needed them
+<pre><code>brew uninstall decruft &amp;&amp; brew autoremove -n   # lists what autoremove would take, including the family tools
+brew autoremove                               # then run it if nothing on the list is something you use
 brew untap matthew-eucaristo/tap            # if you no longer use the tap</code></pre>
       <p>decruft writes nothing to your disk, so there is nothing else to remove. With <code>go install</code>: <code>rm "$(go env GOPATH)/bin/decruft"</code>.</p>
     </details>

@@ -116,7 +116,7 @@
     ] },
     { name: "Homebrew", color: "#F59E42", note: "↺ regrows", items: [
       { name: "Old versions, downloads and logs", size: 280.0 * MB, level: "safe", ...C("brew cleanup --prune=all"), path: "~/Library/Caches/Homebrew", what: "Outdated kegs, cached downloads and logs.", back: "re-downloaded only if you reinstall", why: "brew's own cleanup" },
-      { name: "Unused dependencies", size: 188.7 * MB, level: "review", ...C("brew autoremove"), path: "/opt/homebrew/Cellar", what: "Formulae installed as dependencies that nothing needs now.", back: "brew install them again", why: "you may use one directly" },
+      { name: "Unused dependencies", size: 188.7 * MB, level: "review", ...C("brew autoremove"), path: "/opt/homebrew/Cellar", what: "Formulae installed as dependencies that nothing needs now.", back: "brew install them again", why: "uninstalls formulae; offered only when none provides a command on your PATH" },
     ] },
     { name: "Node.js", color: "#E8C93A", note: "via nodekill", items: [
       { name: "shop-web · node_modules", size: 272.6 * MB, level: "safe", ...T("nodekill"), path: "~/dev/shop-web/node_modules", what: "Installed dependencies of one project.", back: "npm install", why: "nodekill's rules: not touched recently" },

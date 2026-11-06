@@ -59,7 +59,7 @@ Built-in modules use the one official command each area has. decruft shows that 
 | Xcode | DerivedData per project, DeviceSupport per OS version | folder to the Trash, only while Xcode is not running | safe · review |
 | Xcode | Archives | shown only: delete them in Xcode › Organizer (they hold the dSYMs for crash reports) | protected |
 | Simulators | unavailable devices · devices · runtimes | `xcrun simctl delete unavailable` · `xcrun simctl delete <udid>` · `xcrun simctl runtime delete <id>` | safe · review · review (live while booted) |
-| Homebrew | unused dependencies · old versions, downloads, logs | `brew autoremove`, then `brew cleanup --prune=all` (sized with their own `-n`) | review · safe |
+| Homebrew | unused dependencies · old versions, downloads, logs | `brew autoremove`, then `brew cleanup --prune=all` (sized with their own `-n`). Autoremove is offered only when every formula it would take is a library: if one provides a command your PATH runs (bun pulled in as a dependency, say), decruft names it and leaves autoremove to you | review (protected when it would take a command you run) · safe |
 | Package caches | CocoaPods, uv, pip | `pod cache clean --all`, `uv cache prune`, `pip cache purge` | safe |
 | Docker | stopped containers, dangling images, build cache (never volumes) | `docker system prune --force`, sized by `docker system df` | review |
 | Android | NDKs, system images · emulators | `sdkmanager --uninstall <pkg>` · `avdmanager delete avd -n <name>`; shown only without the SDK command-line tools | review |
@@ -101,7 +101,8 @@ Settings' Storage screen lumps developer data into "Developer" and "System Data"
 ## Uninstall
 
 ```sh
-brew uninstall decruft && brew autoremove   # also removes the family tools if only decruft needed them
+brew uninstall decruft && brew autoremove -n   # lists what autoremove would take, including the family tools if only decruft needed them
+brew autoremove                               # then run it if nothing on the list is something you use
 brew untap matthew-eucaristo/tap            # if you no longer use the tap
 ```
 
