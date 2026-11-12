@@ -33,6 +33,10 @@ type Env struct {
 	Running func(name string) bool
 	// Measure sizes a tree: on disk, and what removing it frees now.
 	Measure func(path string) Measured
+	// Roots are the project folders given on the command line (the family
+	// tools' roots); empty means ~/dev. Read only, e.g. to see which NDK a
+	// project uses.
+	Roots []string
 }
 
 // Measured is a sized tree.

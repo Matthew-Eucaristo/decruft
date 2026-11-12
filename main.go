@@ -143,6 +143,7 @@ func runWith(args []string, stdout, stderr io.Writer, d deps) error {
 		roots = append(roots, abs)
 	}
 
+	d.env.Roots = roots // read-only project lookups in modules (which NDK a project uses)
 	scanner := &inventory.Scanner{Env: d.env, Family: d.fam, Modules: d.modset, Roots: roots, NoFamily: *noFamily}
 	mode := act.Trash
 	switch {

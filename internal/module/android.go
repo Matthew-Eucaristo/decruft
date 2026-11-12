@@ -70,7 +70,11 @@ func scanAndroid(_ context.Context, env *Env) Result {
 	emulator := env.Running("qemu-system-aarch64") || env.Running("qemu-system-x86_64")
 	if sdk := androidSDK(env); sdk != "" {
 		sdkmanager := sdkTool(env, sdk, "sdkmanager")
-		pkg := func(dir, id, name, explain string) {
+		var usedBy map[string][]string // NDK version → projects; nil when not looked up
+		if len(subdirs(filepath.Join(sdk, "ndk"))) > 0 {
+			usedBy = ndkUsers(env)
+		}
+		pkg := func(dir, id, name, explain string, users []string) {
 			s := spec{source: "android", category: item.Android, kind: "android-sdk-package", name: name, path: dir,
 				level: item.Review, explain: explain, regen: "Android Studio › SDK Manager, or sdkmanager \"" + id + "\" (network)"}
 			if sdkmanager != "" {
@@ -84,7 +88,14 @@ func scanAndroid(_ context.Context, env *Env) Result {
 				it.Action = item.Action{Kind: item.Manual, How: "Android Studio › Settings › Languages & Frameworks › Android SDK (or install the SDK command-line tools for sdkmanager)"}
 				it.Add("no_sdkmanager", item.Protected, "the SDK's command-line tools are not installed, so there is no sdkmanager to remove it with")
 			}
-			it.Add("pinned", item.Review, "a project may pin this version (ndkVersion, compileSdk); Gradle downloads it again if so")
+			switch {
+			case len(users) > 0:
+				it.Add("used_by_projects", item.Review, "used by "+strings.Join(users, ", ")+"; their next Android build downloads it again")
+			case usedBy != nil:
+				it.Add("pinned", item.Review, "no scanned project names this version, but the Android Gradle plugin may use it as its default; Gradle downloads it again if so")
+			default:
+				it.Add("pinned", item.Review, "a project may pin this version (ndkVersion, compileSdk); Gradle downloads it again if so")
+			}
 			if studio {
 				it.Add("studio_running", item.Live, "Android Studio is running; quit it before changing the SDK")
 			}
@@ -92,14 +103,14 @@ func scanAndroid(_ context.Context, env *Env) Result {
 		}
 		for _, d := range subdirs(filepath.Join(sdk, "ndk")) {
 			v := filepath.Base(d)
-			pkg(d, "ndk;"+v, "NDK "+v, "Native development kit for C/C++ code in Android apps.")
+			pkg(d, "ndk;"+v, "NDK "+v, "Native development kit for C/C++ code in Android apps.", usedBy[v])
 		}
 		for _, api := range subdirs(filepath.Join(sdk, "system-images")) {
 			for _, tag := range subdirs(api) {
 				for _, abi := range subdirs(tag) {
 					id := strings.Join([]string{"system-images", filepath.Base(api), filepath.Base(tag), filepath.Base(abi)}, ";")
 					pkg(abi, id, "System image "+filepath.Base(api)+" "+filepath.Base(tag)+" "+filepath.Base(abi),
-						"The Android OS image emulators boot from.")
+						"The Android OS image emulators boot from.", nil)
 				}
 			}
 		}

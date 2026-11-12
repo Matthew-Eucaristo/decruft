@@ -324,6 +324,76 @@ func TestAndroid(t *testing.T) {
 	}
 }
 
+func TestNDKUsers(t *testing.T) {
+	env := fakeEnv(t, nil)
+	root := mkdir(t, env.Home, "code")
+	env.Roots = []string{root}
+	write := func(body string, parts ...string) {
+		t.Helper()
+		p := filepath.Join(append([]string{root}, parts...)...)
+		mkdir(t, filepath.Dir(p))
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Flutter app on the SDK default, resolved from the Flutter SDK on PATH.
+	flutterSDK := mkdir(t, env.Home, "flutter")
+	write("", "..", "flutter", "bin", "flutter")
+	kt := filepath.Join(flutterSDK, "packages", "flutter_tools", "gradle", "src", "main", "kotlin", "FlutterExtension.kt")
+	mkdir(t, filepath.Dir(kt))
+	if err := os.WriteFile(kt, []byte(`    val ndkVersion: String = "28.2.1"`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env.LookPath = func(n string) (string, error) {
+		if n == "flutter" {
+			return filepath.Join(flutterSDK, "bin", "flutter"), nil
+		}
+		return "", os.ErrNotExist
+	}
+	write("", "shop_app", "android", "settings.gradle.kts")
+	write("android {\n    ndkVersion = flutter.ndkVersion\n}\n", "shop_app", "android", "app", "build.gradle.kts")
+	// Native app with a literal pin.
+	write("", "notes", "settings.gradle")
+	write("android {\n    ndkVersion \"27.0.1\"\n}\n", "notes", "app", "build.gradle")
+	// React Native app on React Native's default; its node_modules is not walked.
+	write("", "camera", "android", "settings.gradle")
+	write("android {\n    ndkVersion rootProject.ext.ndkVersion\n}\n", "camera", "android", "app", "build.gradle")
+	write("[versions]\nndkVersion = \"27.1.9\"\n", "camera", "node_modules", "react-native", "gradle", "libs.versions.toml")
+	write("", "camera", "node_modules", "lib", "android", "settings.gradle")
+	write("android { ndkVersion \"99.0.0\" }", "camera", "node_modules", "lib", "android", "app", "build.gradle")
+
+	got := ndkUsers(env)
+	want := map[string][]string{"28.2.1": {"shop_app"}, "27.0.1": {"notes"}, "27.1.9": {"camera"}}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for v, users := range want {
+		if strings.Join(got[v], ",") != strings.Join(users, ",") {
+			t.Fatalf("%s: got %v, want %v", v, got[v], users)
+		}
+	}
+
+	// The scan names the users and keeps every NDK at review.
+	sdk := filepath.Join(env.Home, "Library", "Android", "sdk")
+	mkdir(t, sdk, "ndk", "27.0.1")
+	mkdir(t, sdk, "ndk", "26.0.0")
+	for _, it := range scanAndroid(context.Background(), env).Items {
+		if !strings.HasPrefix(it.Name, "NDK") {
+			continue
+		}
+		if it.Level != item.Review && it.Level != item.Protected {
+			t.Fatalf("%s level %s", it.Name, it.Level)
+		}
+		text := fmt.Sprint(it.Reasons)
+		if it.Name == "NDK 27.0.1" && !strings.Contains(text, "used by notes") {
+			t.Fatalf("%s: %s", it.Name, text)
+		}
+		if it.Name == "NDK 26.0.0" && !strings.Contains(text, "no scanned project names this version") {
+			t.Fatalf("%s: %s", it.Name, text)
+		}
+	}
+}
+
 func TestLinuxNeverRunsSudo(t *testing.T) {
 	env := fakeEnv(t, map[string]string{
 		"apt-get -s autoremove":   "Remv libfoo1 [1.0]\nRemv libbar2 [2.0]\n",
